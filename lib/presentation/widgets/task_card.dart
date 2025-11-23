@@ -1,3 +1,5 @@
+// lib/presentation/widgets/task_card.dart
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -9,27 +11,23 @@ import 'category_icon.dart';
 class TaskCard extends StatelessWidget {
   final TaskEntity task;
 
-  const TaskCard({Key? key, required this.task}) : super(key: key); // ← Remove 'const' only if needed elsewhere
+  const TaskCard({Key? key, required this.task}) : super(key: key);
 
-  // We'll get the controller inside build() instead of as a field
   @override
   Widget build(BuildContext context) {
-    final TaskController ctrl = Get.find<TaskController>(); // ← Move here
+    final TaskController ctrl = Get.find<TaskController>();
 
-    // Helper to parse date + time correctly
-    String _formatDateTime() {
+    // Safely format time (12-hour format with AM/PM)
+    String _formatTime() {
       try {
-        final dateStr = task.date.toIso8601String().split('T').first;
         final timeStr = task.time.trim();
-
-        // Handle both 12-hour (10:25 PM) and 24-hour formats
-        final DateTime fullDateTime;
         if (timeStr.contains('AM') || timeStr.contains('PM')) {
-          fullDateTime = DateFormat('yyyy-MM-dd h:mm a').parse('$dateStr $timeStr');
+          return timeStr; // Already in 12-hour format
         } else {
-          fullDateTime = DateFormat('yyyy-MM-dd HH:mm').parse('$dateStr $timeStr');
+          // Convert 24-hour to 12-hour
+          final parsed = DateFormat('HH:mm').parse(timeStr);
+          return DateFormat('h:mm a').format(parsed);
         }
-        return DateFormat('h:mm a').format(fullDateTime);
       } catch (e) {
         return task.time;
       }
@@ -38,13 +36,14 @@ class TaskCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
+      elevation: 3,
       child: ListTile(
         leading: CategoryIcon(category: task.category),
         title: Text(
           task.title,
           style: TextStyle(
             fontWeight: FontWeight.w600,
+            fontSize: 16,
             decoration: task.isCompleted ? TextDecoration.lineThrough : null,
             color: task.isCompleted ? Colors.grey : null,
           ),
@@ -58,8 +57,8 @@ class TaskCard extends StatelessWidget {
                 const Icon(Icons.access_time, size: 14, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  _formatDateTime(),
-                  style: const TextStyle(fontSize: 13),
+                  _formatTime(),
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
               ],
             ),
@@ -67,7 +66,7 @@ class TaskCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 task.notes,
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -77,9 +76,14 @@ class TaskCard extends StatelessWidget {
         trailing: Checkbox(
           value: task.isCompleted,
           activeColor: Colors.purple,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
           onChanged: (bool? value) {
             if (value == true) {
+              // Mark as completed
               ctrl.markComplete(task);
+            } else {
+              // Uncheck → move back to To Do list
+              ctrl.unmarkComplete(task);
             }
           },
         ),
@@ -89,7 +93,7 @@ class TaskCard extends StatelessWidget {
         onLongPress: () {
           Get.defaultDialog(
             title: "Delete Task",
-            middleText: "Are you sure you want to delete this task?",
+            middleText: "Are you sure you want to delete \"${task.title}\"?",
             textConfirm: "Delete",
             textCancel: "Cancel",
             confirmTextColor: Colors.white,

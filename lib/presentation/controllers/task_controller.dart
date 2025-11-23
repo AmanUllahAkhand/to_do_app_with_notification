@@ -104,4 +104,20 @@ class TaskController extends GetxController {
     await completeTaskUseCase(task.id!);
     fetchTasks();
   }
+  // In TaskController
+
+  Future<void> unmarkComplete(TaskEntity task) async {
+    final updatedTask = TaskEntity(
+      id: task.id,
+      title: task.title,
+      category: task.category,
+      date: task.date,
+      time: task.time,
+      notes: task.notes,
+      isCompleted: false, // ← Set back to false
+      hasReminder: task.hasReminder,
+    );
+    await updateTaskUseCase(updatedTask);
+    fetchTasks(); // Refresh the lists
+  }
 }

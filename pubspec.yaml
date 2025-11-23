@@ -1,0 +1,29 @@
+name: to_do_list
+description: A simple Todo application using Flutter, GetX, and SQLite.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.6.2 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  get: ^4.6.6  # For state management and navigation
+  sqflite: ^2.3.3  # For SQLite database
+  path: ^1.9.0  # For path handling
+  flutter_local_notifications: ^17.2.3  # For local notifications/reminders
+  intl: ^0.19.0  # For date/time formatting
+  shared_preferences: ^2.3.2  # For persisting theme mode
+  timezone: ^0.9.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  # Add assets if needed, e.g., for icons
+#  assets:
+#    - assets/icons/

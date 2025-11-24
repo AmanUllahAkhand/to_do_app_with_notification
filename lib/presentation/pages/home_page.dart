@@ -18,8 +18,12 @@ class HomePage extends StatelessWidget {
         title: const Text('My Todo List'),
         actions: [
           IconButton(
-            icon: Icon(themeCtrl.isDarkMode.value ? Icons.sunny : Icons.nightlight_round),
-            onPressed: themeCtrl.toggleTheme,
+            icon: Obx(() => Icon(
+              Get.find<ThemeController>().isDarkMode.value
+                  ? Icons.light_mode
+                  : Icons.dark_mode,
+            )),
+            onPressed: () => Get.find<ThemeController>().toggleTheme(),
           ),
         ],
       ),

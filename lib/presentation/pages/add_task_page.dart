@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../core/utils/notification_helper.dart';
 import '../../domain/entities/task_entity.dart';
 import '../controllers/task_controller.dart';
 import '../widgets/custom_button.dart';
@@ -21,8 +22,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
   late TextEditingController notesCtrl;
   late RxString selectedCategory;
   late Rx<DateTime> selectedDate;
-  late Rx<TimeOfDay> selectedTimeOfDay; // ← Use TimeOfDay instead of String
+  late Rx<TimeOfDay> selectedTimeOfDay;
   late RxBool hasReminder;
+  // late Rx<TaskPriority> selectedPriority; // ← Priority added
 
   final TaskController ctrl = Get.find();
 
@@ -35,14 +37,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
     selectedCategory = (widget.task?.category ?? 'home').obs;
     selectedDate = (widget.task?.date ?? DateTime.now()).obs;
 
-    // Safely parse saved time string → TimeOfDay
+    // Parse saved time safely
     final savedTimeStr = widget.task?.time ?? '10:00 AM';
     selectedTimeOfDay = _parseTimeString(savedTimeStr).obs;
 
     hasReminder = (widget.task?.hasReminder ?? false).obs;
+    // selectedPriority = (widget.task?.priority ?? TaskPriority.medium).obs;
   }
 
-  // Helper: Convert "10:25 PM" or "22:25" → TimeOfDay
   TimeOfDay _parseTimeString(String timeStr) {
     try {
       final format = timeStr.contains('AM') || timeStr.contains('PM')
@@ -51,11 +53,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
       final dateTime = format.parse(timeStr);
       return TimeOfDay.fromDateTime(dateTime);
     } catch (e) {
-      return const TimeOfDay(hour: 10, minute: 0); // fallback
+      return const TimeOfDay(hour: 10, minute: 0);
     }
   }
 
-  // Convert TimeOfDay → "10:25 PM"
   String _formatTime(TimeOfDay time) {
     final now = DateTime.now();
     final dateTime = DateTime(now.year, now.month, now.day, time.hour, time.minute);
@@ -91,6 +92,19 @@ class _AddTaskPageState extends State<AddTaskPage> {
               )),
               const SizedBox(height: 20),
 
+              // Priority Selection
+              Text("Priority", style: Theme.of(context).textTheme.titleMedium),
+              // const SizedBox(height: 8),
+              // Obx(() => Row(
+              //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              //   children: [
+              //     _priorityChip("High", TaskPriority.high, Colors.red.shade400),
+              //     _priorityChip("Medium", TaskPriority.medium, Colors.orange.shade600),
+              //     _priorityChip("Low", TaskPriority.low, Colors.green.shade600),
+              //   ],
+              // )),
+              const SizedBox(height: 20),
+
               // Date Picker
               Obx(() => ListTile(
                 title: Text('Date: ${DateFormat('MMM d, yyyy').format(selectedDate.value)}'),
@@ -106,7 +120,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 },
               )),
 
-              // Time Picker – NOW 100% WORKING
+              // Time Picker
               Obx(() => ListTile(
                 title: Text('Time: ${_formatTime(selectedTimeOfDay.value)}'),
                 trailing: const Icon(Icons.access_time),
@@ -115,9 +129,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     context: context,
                     initialTime: selectedTimeOfDay.value,
                   );
-                  if (time != null) {
-                    selectedTimeOfDay.value = time;
-                  }
+                  if (time != null) selectedTimeOfDay.value = time;
                 },
               )),
 
@@ -138,26 +150,43 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
               CustomButton(
                 text: widget.task == null ? 'Save' : 'Update',
-                onPressed: () {
+                onPressed: () async {
                   if (titleCtrl.text.trim().isEmpty) {
-                    Get.snackbar('Error', 'Title is required', backgroundColor: Colors.red, colorText: Colors.white);
+                    Get.snackbar('Error', 'Title is required',
+                        backgroundColor: Colors.red, colorText: Colors.white);
                     return;
                   }
 
                   final timeString = _formatTime(selectedTimeOfDay.value);
+                  final reminderTime = DateTime(
+                    selectedDate.value.year,
+                    selectedDate.value.month,
+                    selectedDate.value.day,
+                    selectedTimeOfDay.value.hour,
+                    selectedTimeOfDay.value.minute,
+                  );
 
                   if (widget.task == null) {
-                    // Add new
-                    ctrl.addNewTask(
+                    // ADD NEW TASK
+                    final newTaskId = await ctrl.addNewTask(
                       title: titleCtrl.text.trim(),
                       category: selectedCategory.value,
                       date: selectedDate.value,
                       time: timeString,
                       notes: notesCtrl.text,
                       hasReminder: hasReminder.value,
+                      // priority: selectedPriority.value,
                     );
+
+                    if (hasReminder.value && reminderTime.isAfter(DateTime.now())) {
+                      NotificationHelper.setReminder(
+                        taskId: newTaskId,
+                        taskTitle: titleCtrl.text.trim(),
+                        dateTime: reminderTime,
+                      );
+                    }
                   } else {
-                    // Update existing
+                    // UPDATE EXISTING TASK
                     final updatedTask = TaskEntity(
                       id: widget.task!.id,
                       title: titleCtrl.text.trim(),
@@ -167,9 +196,26 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       notes: notesCtrl.text,
                       isCompleted: widget.task!.isCompleted,
                       hasReminder: hasReminder.value,
+                      // priority: selectedPriority.value,
                     );
-                    ctrl.updateExistingTask(updatedTask);
+
+                    await ctrl.updateExistingTask(updatedTask);
+
+                    // Cancel old reminder
+                    if (widget.task!.hasReminder) {
+                      await NotificationHelper.cancel(widget.task!.id!);
+                    }
+
+                    // Schedule new reminder
+                    if (hasReminder.value && reminderTime.isAfter(DateTime.now())) {
+                      NotificationHelper.setReminder(
+                        taskId: widget.task!.id!,
+                        taskTitle: titleCtrl.text.trim(),
+                        dateTime: reminderTime,
+                      );
+                    }
                   }
+
                   Get.back();
                 },
               ),
@@ -179,6 +225,23 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ),
     );
   }
+
+  // Widget _priorityChip(String label, TaskPriority priority, Color color) {
+  //   final isSelected = selectedPriority.value == priority;
+  //   return GestureDetector(
+  //     onTap: () => selectedPriority.value = priority,
+  //     child: Chip(
+  //       backgroundColor: isSelected ? color : Colors.grey.shade200,
+  //       label: Text(
+  //         label,
+  //         style: TextStyle(
+  //           color: isSelected ? Colors.white : Colors.black87,
+  //           fontWeight: FontWeight.bold,
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   @override
   void dispose() {

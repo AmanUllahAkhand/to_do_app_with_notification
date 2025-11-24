@@ -1,25 +1,20 @@
 // lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:to_do_list/presentation/controllers/theme_controller.dart';
 import 'core/utils/notification_helper.dart';
 import 'presentation/bindings/task_binding.dart';
 import 'presentation/pages/home_page.dart';
 import 'core/themes/app_theme.dart';
+import 'presentation/controllers/theme_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // This line is CRUCIAL for iOS light/dark mode to work!
-  await Get.putAsync<ThemeController>(() async {
-    final controller = ThemeController();
-    await controller.loadTheme(); // Load saved theme
-    return controller;
-  }, permanent: true);
-
   await NotificationHelper.initialize();
   TaskBinding().dependencies();
+
+  // Put ThemeController normally (NOT async!)
+  Get.put(ThemeController());
 
   runApp(const MyApp());
 }
@@ -36,7 +31,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: themeController.themeMode, // Use controller instead of ThemeMode.system
+      themeMode: themeController.themeMode, // Uses observable
       home: HomePage(),
     );
   }

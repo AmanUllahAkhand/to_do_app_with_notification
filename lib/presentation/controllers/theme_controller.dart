@@ -8,8 +8,6 @@ class ThemeController extends GetxController {
   var isDarkMode = false.obs;
   late SharedPreferences prefs;
 
-  ThemeMode get themeMode => isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
-
   @override
   void onInit() {
     super.onInit();
@@ -18,18 +16,22 @@ class ThemeController extends GetxController {
 
   Future<void> loadTheme() async {
     prefs = await SharedPreferences.getInstance();
-    final savedTheme = prefs.getBool('isDarkMode');
-    if (savedTheme != null) {
-      isDarkMode.value = savedTheme;
+    final saved = prefs.getBool('isDarkMode');
+
+    if (saved != null) {
+      isDarkMode.value = saved;
     } else {
-      // Follow system theme on first launch
-      isDarkMode.value = Get.mediaQuery.platformBrightness == Brightness.dark;
+      // SAFE WAY: Use WidgetsBinding to get brightness AFTER app starts
+      final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+      isDarkMode.value = brightness == Brightness.dark;
     }
   }
 
   void toggleTheme() {
     isDarkMode.value = !isDarkMode.value;
     prefs.setBool('isDarkMode', isDarkMode.value);
-    Get.changeThemeMode(themeMode);
+    Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
   }
+
+  ThemeMode get themeMode => isDarkMode.value ? ThemeMode.dark : ThemeMode.light;
 }

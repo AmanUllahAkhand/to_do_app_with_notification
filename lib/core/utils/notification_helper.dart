@@ -1,30 +1,27 @@
-// lib/core/utils/notification_helper.dart
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'dart:typed_data';
 
 class NotificationHelper {
   static final FlutterLocalNotificationsPlugin _notifications =
   FlutterLocalNotificationsPlugin();
 
   static Future<void> initialize() async {
-    // Initialize timezone (required for zonedSchedule)
     tz.initializeTimeZones();
 
-    // Android settings
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // iOS settings (REQUIRED even if testing on simulator)
-    const DarwinInitializationSettings iosSettings =
-    DarwinInitializationSettings(
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      requestCriticalPermission: true,
     );
 
-    // Combined settings for both platforms
     const InitializationSettings initSettings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
@@ -32,15 +29,16 @@ class NotificationHelper {
 
     await _notifications.initialize(
       initSettings,
-      // Optional: handle tap on notification
-      onDidReceiveNotificationResponse: (details) {
-        // You can navigate to app when notification is tapped
-        print('Notification tapped: ${details.payload}');
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // THIS IS CALLED WHEN USER TAPS THE NOTIFICATION OR PRESSES ACTION BUTTON
+        if (response.payload == 'REMINDER_POPUP') {
+          _showReminderDialog(response.notificationResponseType);
+        }
       },
     );
   }
 
-  static Future<void> scheduleNotification({
+  static Future<void> scheduleReminder({
     required int id,
     required String title,
     required String body,
@@ -48,54 +46,92 @@ class NotificationHelper {
   }) async {
     if (scheduledDate.isBefore(DateTime.now())) return;
 
-    final tz.TZDateTime tzScheduledDate = tz.TZDateTime.from(
-      scheduledDate,
-      tz.local,
-    );
+    final tz.TZDateTime scheduled = tz.TZDateTime.from(scheduledDate, tz.local);
 
     await _notifications.zonedSchedule(
       id,
       title,
       body,
-      tzScheduledDate,
-      const NotificationDetails(
+      scheduled,
+      NotificationDetails(
         android: AndroidNotificationDetails(
-          'task_reminders_channel',
-          'Task Reminders',
-          channelDescription: 'Reminders for your tasks',
+          'alarm_channel',
+          'Task Alarms',
+          channelDescription: 'Critical task reminder alarms',
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          playSound: true,
+          sound: const RawResourceAndroidNotificationSound('alarm_clock'),
+          enableVibration: true,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.alarm,
+          additionalFlags: Int32List.fromList(<int>[4]), // ← CORRECT: Convert List<int> to Int32List
         ),
-        iOS: DarwinNotificationDetails(
+        iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          sound: 'alarm_clock.caf',
+          interruptionLevel: InterruptionLevel.critical,
         ),
       ),
+      payload: 'REMINDER_POPUP', // Triggers our popup
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
-  // Helper
-  static void setReminder({
-    required int taskId,
-    required String taskTitle,
-    required DateTime dateTime,
-  }) {
-    if (dateTime.isAfter(DateTime.now())) {
-      scheduleNotification(
-        id: taskId,
-        title: 'Reminder: $taskTitle',
-        body: 'Your task is due now!',
-        scheduledDate: dateTime,
-      );
-    }
+  // BEAUTIFUL POPUP WHEN REMINDER FIRES
+  static void _showReminderDialog(NotificationResponseType type) {
+    Get.dialog(
+      WillPopScope(
+        onWillPop: () async => false, // Prevent back button dismiss
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.alarm, color: Colors.red, size: 32),
+              SizedBox(width: 10),
+              Text("Time's Up!", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            "Your task is due now!\nDon't forget to complete it.",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Get.back();
+                _notifications.cancelAll(); // Optional: stop repeating alarm
+              },
+              child: Text("Snooze 5 min", style: TextStyle(color: Colors.orange)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Get.back(),
+              child: Text("OK, Got it!", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+      barrierDismissible: false,
+    );
   }
 
-  // Optional: cancel
-  static Future<void> cancel(int id) async => _notifications.cancel(id);
-  static Future<void> cancelAll() async => _notifications.cancelAll();
+  // Helper methods
+  static void setReminder({required int taskId, required String taskTitle, required DateTime dateTime}) {
+    scheduleReminder(
+      id: taskId,
+      title: "Reminder",
+      body: taskTitle,
+      scheduledDate: dateTime,
+    );
+  }
+
+  static Future<void> cancel(int id) async => await _notifications.cancel(id);
+  static Future<void> cancelAll() async => await _notifications.cancelAll();
 }

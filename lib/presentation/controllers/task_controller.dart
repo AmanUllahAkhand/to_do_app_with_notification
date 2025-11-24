@@ -39,34 +39,17 @@ class TaskController extends GetxController {
     completedTasks.value = allTasks.where((t) => t.isCompleted).toList();
   }
 
-  // Inside TaskController
+  // lib/presentation/controllers/task_controller.dart
 
-  Future<void> addNewTask({
+  Future<int> addNewTask({
     required String title,
     required String category,
     required DateTime date,
     required String time,
     required String notes,
     bool hasReminder = false,
+    // TaskPriority priority = TaskPriority.medium,
   }) async {
-    // Parse time string (e.g., "10:25 PM") into actual DateTime
-    final timeParts = time.split(' ');
-    final hourMinute = timeParts[0].split(':');
-    int hour = int.parse(hourMinute[0]);
-    final minute = int.parse(hourMinute[1]);
-    final isPM = timeParts.length > 1 && timeParts[1] == 'PM';
-
-    if (isPM && hour != 12) hour += 12;
-    if (!isPM && hour == 12) hour = 0;
-
-    final reminderDateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      hour,
-      minute,
-    );
-
     final task = TaskEntity(
       title: title,
       category: category,
@@ -74,21 +57,16 @@ class TaskController extends GetxController {
       time: time,
       notes: notes,
       hasReminder: hasReminder,
+      // priority: priority,
     );
 
-    await addTaskUseCase(task);
+    // Now this works — returns real int ID
+    final int insertedId = await addTaskUseCase(task);
 
-    // Schedule reminder only if enabled and time is in future
-    if (hasReminder && reminderDateTime.isAfter(DateTime.now())) {
-      NotificationHelper.setReminder(
-        taskId: DateTime.now().millisecondsSinceEpoch, // temporary ID
-        taskTitle: title,
-        dateTime: reminderDateTime,
-      );
-    }
-
-    fetchTasks();
+    await fetchTasks(); // Refresh UI
+    return insertedId;  // Used for scheduling notification
   }
+
 
   Future<void> updateExistingTask(TaskEntity task) async {
     await updateTaskUseCase(task);

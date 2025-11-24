@@ -13,39 +13,37 @@ class NotificationHelper {
   static Future<void> initialize() async {
     tz.initializeTimeZones();
 
-    const AndroidInitializationSettings android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const DarwinInitializationSettings ios = DarwinInitializationSettings(
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
-      requestCriticalPermission: true,
+      requestCriticalPermission: true, // Request critical alerts
     );
 
-    const InitializationSettings settings = InitializationSettings(android: android, iOS: ios);
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
     await _notifications.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (details) {
-        // This runs when user taps notification OR when alarm fires
-        if (details.payload == 'SHOW_POPUP') {
-          _showAlarmPopup();
+      initSettings,
+      onDidReceiveNotificationResponse: (response) {
+        if (response.payload == 'REMINDER_POPUP') {
+          _showReminderDialog(); // Popup on tap
         }
       },
     );
 
-    // Create high-priority alarm channel (Android)
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'alarm_channel',
-      'Task Alarms',
-      description: 'Critical alarms that wake you up',
-      importance: Importance.max,
-      playSound: true,
-      enableVibration: true,
-      audioAttributesUsage: AudioAttributesUsage.alarm,
+    // REQUEST PERMISSIONS (Critical for iOS)
+    final iosPlugin = _notifications.resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    await iosPlugin?.requestPermissions(
+      alert: true,
+      badge: true,
+      sound: true,
+      critical: true,   // ← This gives loud bypass-silent sound
     );
-
-    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await androidPlugin?.createNotificationChannel(channel);
   }
 
   static Future<void> scheduleReminder({
@@ -77,12 +75,12 @@ class NotificationHelper {
           category: AndroidNotificationCategory.alarm,
           additionalFlags: Int32List.fromList([4]),   // Repeats sound
         ),
-        iOS: const DarwinNotificationDetails(
+        iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
           sound: 'alarm_clock.caf',
-          interruptionLevel: InterruptionLevel.critical,
+          interruptionLevel: InterruptionLevel.active,
         ),
       ),
       payload: 'SHOW_POPUP',
@@ -92,41 +90,21 @@ class NotificationHelper {
   }
 
   // This shows the popup on HomePage
-  static void _showAlarmPopup() {
+  static void _showReminderDialog() {
+    // Navigate to HomePage if not already there
     if (Get.currentRoute != '/home') {
-      Get.offAllNamed('/home'); // Go to HomePage first
+      Get.offAllNamed('/home');
     }
 
+    // Show popup
     Get.dialog(
-      WillPopScope(
-        onWillPop: () async => false,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.red.shade50,
-          title: Row(
-            children: [
-              Icon(Icons.alarm, color: Colors.red, size: 40),
-              SizedBox(width: 12),
-              Text("TIME'S UP!", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 22)),
-            ],
-          ),
-          content: Text(
-            "Your task is due right now!\nComplete it before it's too late!",
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 18),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Get.back(),
-              child: Text("Snooze 5 min", style: TextStyle(color: Colors.orange, fontSize: 16)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () => Get.back(),
-              child: Text("Dismiss", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
+      AlertDialog(
+        title: const Text('Time\'s Up! ⏰'),
+        content: const Text('Your task is due now! Complete it!'),
+        actions: [
+          TextButton(onPressed: Get.back, child: const Text('Snooze')),
+          ElevatedButton(onPressed: () => Get.back(), child: const Text('OK')),
+        ],
       ),
       barrierDismissible: false,
     );

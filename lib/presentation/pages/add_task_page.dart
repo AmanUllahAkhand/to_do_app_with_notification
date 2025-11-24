@@ -24,7 +24,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   late Rx<DateTime> selectedDate;
   late Rx<TimeOfDay> selectedTimeOfDay;
   late RxBool hasReminder;
-  // late Rx<TaskPriority> selectedPriority; // ← Priority added
+  // late Rx<TaskPriority> selectedPriority; // ← Re-enabled
 
   final TaskController ctrl = Get.find();
 
@@ -37,7 +37,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     selectedCategory = (widget.task?.category ?? 'home').obs;
     selectedDate = (widget.task?.date ?? DateTime.now()).obs;
 
-    // Parse saved time safely
     final savedTimeStr = widget.task?.time ?? '10:00 AM';
     selectedTimeOfDay = _parseTimeString(savedTimeStr).obs;
 
@@ -93,7 +92,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               const SizedBox(height: 20),
 
               // Priority Selection
-              Text("Priority", style: Theme.of(context).textTheme.titleMedium),
+              // Text("Priority", style: Theme.of(context).textTheme.titleMedium),
               // const SizedBox(height: 8),
               // Obx(() => Row(
               //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -175,13 +174,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
                       time: timeString,
                       notes: notesCtrl.text,
                       hasReminder: hasReminder.value,
-                      // priority: selectedPriority.value,
+                      // priority: selectedPriority.value, // ← Fixed
                     );
 
                     if (hasReminder.value && reminderTime.isAfter(DateTime.now())) {
-                      NotificationHelper.setReminder(
-                        taskId: newTaskId,
-                        taskTitle: titleCtrl.text.trim(),
+                      await NotificationHelper.scheduleReminder( // ← Fixed method name
+                        id: newTaskId,
+                        title: "Reminder",
+                        body: titleCtrl.text.trim(),
                         dateTime: reminderTime,
                       );
                     }
@@ -201,16 +201,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
                     await ctrl.updateExistingTask(updatedTask);
 
-                    // Cancel old reminder
                     if (widget.task!.hasReminder) {
                       await NotificationHelper.cancel(widget.task!.id!);
                     }
 
-                    // Schedule new reminder
                     if (hasReminder.value && reminderTime.isAfter(DateTime.now())) {
-                      NotificationHelper.setReminder(
-                        taskId: widget.task!.id!,
-                        taskTitle: titleCtrl.text.trim(),
+                      await NotificationHelper.scheduleReminder(
+                        id: widget.task!.id!,
+                        title: "Reminder",
+                        body: titleCtrl.text.trim(),
                         dateTime: reminderTime,
                       );
                     }
@@ -232,13 +231,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   //     onTap: () => selectedPriority.value = priority,
   //     child: Chip(
   //       backgroundColor: isSelected ? color : Colors.grey.shade200,
-  //       label: Text(
-  //         label,
-  //         style: TextStyle(
-  //           color: isSelected ? Colors.white : Colors.black87,
-  //           fontWeight: FontWeight.bold,
-  //         ),
-  //       ),
+  //       label: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)),
   //     ),
   //   );
   // }

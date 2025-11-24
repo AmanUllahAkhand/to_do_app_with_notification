@@ -32,6 +32,10 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeController.themeMode, // Uses observable
+      initialRoute: '/home',
+      getPages: [
+        GetPage(name: '/home', page: () => HomePage()),
+      ],
       home: HomePage(),
     );
   }

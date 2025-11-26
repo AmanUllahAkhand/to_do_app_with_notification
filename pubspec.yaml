@@ -17,6 +17,7 @@ dependencies:
   intl: ^0.19.0  # For date/time formatting
   shared_preferences: ^2.3.2  # For persisting theme mode
   timezone: ^0.9.4
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

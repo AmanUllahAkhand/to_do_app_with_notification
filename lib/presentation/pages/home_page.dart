@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import '../../core/services/auth_service.dart';
 import '../controllers/task_controller.dart';
 import '../controllers/theme_controller.dart';
 import '../widgets/task_card.dart';
@@ -17,13 +18,24 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('My Todo List'),
         actions: [
-          IconButton(
-            icon: Obx(() => Icon(
-              Get.find<ThemeController>().isDarkMode.value
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
-            )),
-            onPressed: () => Get.find<ThemeController>().toggleTheme(),
+          Row(
+            children: [
+              IconButton(
+                icon: Obx(() => Icon(
+                  Get.find<ThemeController>().isDarkMode.value
+                      ? Icons.light_mode
+                      : Icons.dark_mode,
+                )),
+                onPressed: () => Get.find<ThemeController>().toggleTheme(),
+              ),
+              IconButton(
+                icon: Icon(Icons.logout),
+                onPressed: () async {
+                  await AuthService.logout();
+                  Get.offAllNamed('/login');
+                },
+              )
+            ],
           ),
         ],
       ),

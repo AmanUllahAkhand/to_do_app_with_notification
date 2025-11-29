@@ -1,40 +1,44 @@
-// lib/core/services/auth_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/models/user_model.dart';
+import '../constants/api_constants.dart'; // ← Import here
 
 class AuthService {
-  static const String baseUrl = "http://192.168.7.103:9000"; // Change this
-
+  // Register
   static Future<RegisterResponse> register({
     required String name,
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/api/register?name=$name&email=$email&password=$password');
+    final url = Uri.parse(
+      '${ApiConstants.register}?name=$name&email=$email&password=$password',
+    );
+
     final response = await http.post(url);
 
     final json = jsonDecode(response.body);
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (response.statusCode == 200 ||  response.statusCode == 201) {
       return RegisterResponse.fromJson(json);
     } else {
       throw Exception(json['message'] ?? 'Registration failed');
     }
   }
 
+  // Login
   static Future<LoginResponse> login({
     required String email,
     required String password,
   }) async {
-    final url = Uri.parse('$baseUrl/api/login?email=$email&password=$password');
+    final url = Uri.parse('${ApiConstants.login}?email=$email&password=$password');
+
     final response = await http.post(url);
 
     final json = jsonDecode(response.body);
     if (response.statusCode == 200) {
       final loginResponse = LoginResponse.fromJson(json);
 
-      // Save token & user
+      // Save user & token
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', loginResponse.token);
       await prefs.setString('user_name', loginResponse.user.name);
@@ -47,25 +51,31 @@ class AuthService {
     }
   }
 
+  // Check login status
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token') != null;
   }
 
+  // Logout
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 
+  // Get token
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
 
+  // Auth headers for future API calls
   static Future<Map<String, String>> getAuthHeaders() async {
     final token = await getToken();
-    return token != null
-        ? {'Authorization': 'Bearer $token', 'Accept': 'application/json'}
-        : {'Accept': 'application/json'};
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 }

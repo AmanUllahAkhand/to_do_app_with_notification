@@ -84,7 +84,7 @@ class _RegisterPageState extends State<RegisterPage> {
               controller: _nameCtrl,
               decoration: InputDecoration(
                 labelText: "Full Name",
-                prefixIcon: Icon(Icons.person),
+                prefixIcon: Icon(Icons.person_outline),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -94,7 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
               keyboardType: TextInputType.emailAddress,
               decoration: InputDecoration(
                 labelText: "Email",
-                prefixIcon: Icon(Icons.email),
+                prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -104,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
               obscureText: true,
               decoration: InputDecoration(
                 labelText: "Password",
-                prefixIcon: Icon(Icons.lock),
+                prefixIcon: Icon(Icons.lock_outline),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
@@ -118,13 +118,27 @@ class _RegisterPageState extends State<RegisterPage> {
                 minimumSize: Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text("Register", style: TextStyle(fontSize: 18)),
+              child: Text("Register", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
             ),
 
             SizedBox(height: 20),
             TextButton(
-              onPressed: () => Get.back(),
-              child: Text("Already have an account? Login"),
+              onPressed: () => Get.to(() => RegisterPage()),
+              child: RichText(
+                text: TextSpan(
+                  text: "Already have an account? ",
+                  style: TextStyle(color: Colors.grey[700]),
+                  children: [
+                    TextSpan(
+                      text: "Login",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
